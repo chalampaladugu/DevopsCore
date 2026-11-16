@@ -1,0 +1,60 @@
+name: terraform
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff
+
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir:
+          - modules/aws/vpc
+          - modules/aws/ec2
+          - modules/aws/eks
+          - modules/aws/s3
+          - modules/aws/rds
+          - modules/azure/vnet
+          - modules/azure/vm
+          - modules/azure/aks
+          - modules/azure/storage
+          - modules/azure/postgresql
+          - modules/gcp/vpc
+          - modules/gcp/compute
+          - modules/gcp/gke
+          - modules/gcp/gcs
+          - modules/gcp/cloudsql
+          - examples/aws
+          - examples/azure
+          - examples/gcp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: terraform init
+        working-directory: ${{ matrix.dir }}
+        run: terraform init -backend=false -input=false
+      - name: terraform validate
+        working-directory: ${{ matrix.dir }}
+        run: terraform validate -no-color
+
+  tflint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: terraform-linters/setup-tflint@v4
+      - name: tflint
+        run: tflint --init && tflint --recursive --minimum-failure-severity=error
